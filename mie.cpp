@@ -9,6 +9,7 @@
 #define VALUE std::complex<FPVALUE>
 #define ASSERT(x) assert(x)
 #define SQR(x) (x*x)
+#define NORM(x) (sqrt(SQR(x.real ()) + SQR(x.imag())))
 
 template <typename T>
 class Vec3D
@@ -114,9 +115,10 @@ FPVALUE calc_bessel_j (int l, FPVALUE arg)
   return gsl_sf_bessel_jl (l, arg);
 }
 
+//
 FPVALUE calc_derivative_bessel_j (int l, FPVALUE arg)
 {
-  // TODO
+  return gsl_sf_bessel_jl (l - 1, arg) - ((l + 1.0) / arg) * gsl_sf_bessel_jl (l, arg);
 }
 
 // return vector in spherical coordinates
@@ -126,7 +128,7 @@ Vec3D<FPVALUE> calc_M (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVA
 
   FPVALUE e_r = 0;
   FPVALUE e_theta = (is_even ? -1 : 1) * (m / sin (theta)) * calc_bessel_j (l, k * r) * calc_associated_legendre_func (m, l, cos (theta)) * (is_even ? sin (m * phi) : cos (m * phi));
-  FPVALUE e_phi = calc_bessel_j (l, k * r) * calc_derivative_associated_legendre_func (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
+  FPVALUE e_phi = - calc_bessel_j (l, k * r) * calc_derivative_associated_legendre_func (m, l, cos (theta)) * (-sin (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
 
   return Vec3D<FPVALUE> (e_r, e_theta, e_phi);
 }
@@ -138,7 +140,7 @@ Vec3D<FPVALUE> calc_N (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVA
   FPVALUE derivative = calc_bessel_j (l, k * r) + r * calc_derivative_bessel_j (l, k * r);
 
   FPVALUE e_r = (l * (l + 1) / (k * r)) * calc_bessel_j (l, k * r) * calc_associated_legendre_func (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
-  FPVALUE e_theta = (1.0 / (k * r)) * (derivative) * calc_associated_legendre_func (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
+  FPVALUE e_theta = (1.0 / (k * r)) * (derivative) * calc_associated_legendre_func (m, l, cos (theta)) * (-sin(theta)) * (is_even ? cos (m * phi) : sin (m * phi));
   FPVALUE e_phi = (is_even ? -1 : 1) * (m / (k * r * sin (theta))) * (derivative) * calc_associated_legendre_func (m, l, cos (theta)) * (is_even ? sin (m * phi) : cos (m * phi));
 
   return Vec3D<FPVALUE> (e_r, e_theta, e_phi);
@@ -192,13 +194,18 @@ int main ()
 
   int maxL = 40;
 
-  Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, 1.0, M_PI / 2.0, 0.0, k);
-  Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, M_PI / 2.0, 0.0);
+  Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, 1.0, M_PI / 4.0, 0, k);
+  Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, M_PI / 4.0, 0);
 
-  printf ("( {%f,%f} , {%f,%f} , {%f,%f} )\n",
-          E_inc.getX ().real (), E_inc.getX ().imag (),
-          E_inc.getY ().real (), E_inc.getY ().imag (),
-          E_inc.getZ ().real (), E_inc.getZ ().imag ());
+  printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
+          E_inc_polar.getX ().real (), E_inc_polar.getX ().imag (), NORM (E_inc_polar.getX ()),
+          E_inc_polar.getY ().real (), E_inc_polar.getY ().imag (), NORM (E_inc_polar.getY ()),
+          E_inc_polar.getZ ().real (), E_inc_polar.getZ ().imag (), NORM (E_inc_polar.getZ ()));
+
+  printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
+          E_inc.getX ().real (), E_inc.getX ().imag (), NORM (E_inc.getX ()),
+          E_inc.getY ().real (), E_inc.getY ().imag (), NORM (E_inc.getY ()),
+          E_inc.getZ ().real (), E_inc.getZ ().imag (), NORM (E_inc.getZ ()));
 
   return 0;
 }
