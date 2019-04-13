@@ -10,6 +10,9 @@
 #define ASSERT(x) assert(x)
 #define SQR(x) (x*x)
 #define NORM(x) (sqrt(SQR(x.real ()) + SQR(x.imag())))
+#define ACCURACY (0.000000001)
+#define IS_FP_EXACT(x,y) (((x - y) < 0 ? y - x : x - y) < ACCURACY)
+#define IS_COMPLEX_EXACT(x,y) (IS_FP_EXACT(x.real(), y.real()) && IS_FP_EXACT(x.imag(), y.imag()))
 
 template <typename T>
 class Vec3D
@@ -92,6 +95,29 @@ FPVALUE calc_associated_legendre_func (int m, int l, FPVALUE arg)
   return (1.0/(l-1)) * ((2*l-1) * arg * prev - l * prevPrev);
 }
 
+// calculate P_l^m (cos(x)) / sin(x)
+FPVALUE calc_associated_legendre_func_special (int m, int l, FPVALUE arg)
+{
+  ASSERT (m==1);
+
+  if (l == 0)
+  {
+    return FPVALUE (0);
+  }
+
+  if (l == 1)
+  {
+    return FPVALUE (1);
+  }
+
+  ASSERT (l >= 2);
+
+  FPVALUE prev = calc_associated_legendre_func (m, l - 1, arg);
+  FPVALUE prevPrev = calc_associated_legendre_func (m, l - 2, arg);
+
+  return (1.0/(l-1)) * ((2*l-1) * arg * prev - l * prevPrev);
+}
+
 // calculate d(P_l^m(x))/dx
 FPVALUE calc_derivative_associated_legendre_func (int m, int l, FPVALUE arg)
 {
@@ -108,6 +134,24 @@ FPVALUE calc_derivative_associated_legendre_func (int m, int l, FPVALUE arg)
   FPVALUE cur = calc_associated_legendre_func (m, l, arg);
 
   return (1.0/(1 - SQR (arg))) * ((l + 1) * prev - l * arg * cur);
+}
+
+// calculate d(P_l^m(cos(x)))/d(cos(x)) * sin(x)
+FPVALUE calc_derivative_associated_legendre_func_special (int m, int l, FPVALUE arg)
+{
+  ASSERT (m==1);
+
+  if (l == 0)
+  {
+    return FPVALUE (0);
+  }
+
+  ASSERT (l >= 1);
+
+  FPVALUE prev = calc_associated_legendre_func_special (m, l - 1, arg);
+  FPVALUE cur = calc_associated_legendre_func_special (m, l, arg);
+
+  return ((l + 1) * prev - l * arg * cur) * (-1);
 }
 
 FPVALUE calc_bessel_j (int l, FPVALUE arg)
@@ -127,8 +171,8 @@ Vec3D<FPVALUE> calc_M (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVA
   ASSERT (m == 1);
 
   FPVALUE e_r = 0;
-  FPVALUE e_theta = (is_even ? -1 : 1) * (m / sin (theta)) * calc_bessel_j (l, k * r) * calc_associated_legendre_func (m, l, cos (theta)) * (is_even ? sin (m * phi) : cos (m * phi));
-  FPVALUE e_phi = - calc_bessel_j (l, k * r) * calc_derivative_associated_legendre_func (m, l, cos (theta)) * (-sin (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
+  FPVALUE e_theta = (is_even ? -1 : 1) * (m) * calc_bessel_j (l, k * r) * calc_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? sin (m * phi) : cos (m * phi));
+  FPVALUE e_phi = - calc_bessel_j (l, k * r) * calc_derivative_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
 
   return Vec3D<FPVALUE> (e_r, e_theta, e_phi);
 }
@@ -137,11 +181,11 @@ Vec3D<FPVALUE> calc_N (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVA
 {
   ASSERT (m == 1);
 
-  FPVALUE derivative = calc_bessel_j (l, k * r) + r * calc_derivative_bessel_j (l, k * r);
+  FPVALUE derivative = calc_bessel_j (l, k * r) + k * r * calc_derivative_bessel_j (l, k * r);
 
   FPVALUE e_r = (l * (l + 1) / (k * r)) * calc_bessel_j (l, k * r) * calc_associated_legendre_func (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
-  FPVALUE e_theta = (1.0 / (k * r)) * (derivative) * calc_associated_legendre_func (m, l, cos (theta)) * (-sin(theta)) * (is_even ? cos (m * phi) : sin (m * phi));
-  FPVALUE e_phi = (is_even ? -1 : 1) * (m / (k * r * sin (theta))) * (derivative) * calc_associated_legendre_func (m, l, cos (theta)) * (is_even ? sin (m * phi) : cos (m * phi));
+  FPVALUE e_theta = (1.0 / (k * r)) * (derivative) * calc_derivative_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
+  FPVALUE e_phi = (is_even ? -1 : 1) * (m / (k * r)) * (derivative) * calc_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? sin (m * phi) : cos (m * phi));
 
   return Vec3D<FPVALUE> (e_r, e_theta, e_phi);
 }
@@ -186,26 +230,45 @@ Vec3D<VALUE> convert_polar_to_decart (const Vec3D<VALUE> &polar, FPVALUE theta, 
   return res;
 }
 
-int main ()
+void simple_test (FPVALUE theta, FPVALUE phi, Vec3D<VALUE> &correct_inc)
 {
-  //printf ("%f\n", calc_derivative_associated_legendre_func (1, 2, 0.5));
   FPVALUE lambda = 1.0;
   FPVALUE k = 2 * M_PI / lambda;
 
-  int maxL = 40;
+  int maxL = 30;
 
-  Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, 1.0, M_PI / 4.0, 0, k);
-  Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, M_PI / 4.0, 0);
+  Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, 1.0, theta, phi, k);
+  Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, theta, phi);
 
-  printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
-          E_inc_polar.getX ().real (), E_inc_polar.getX ().imag (), NORM (E_inc_polar.getX ()),
-          E_inc_polar.getY ().real (), E_inc_polar.getY ().imag (), NORM (E_inc_polar.getY ()),
-          E_inc_polar.getZ ().real (), E_inc_polar.getZ ().imag (), NORM (E_inc_polar.getZ ()));
+  ASSERT (IS_COMPLEX_EXACT (E_inc.getX (), correct_inc.getX ()));
+  ASSERT (IS_COMPLEX_EXACT (E_inc.getY (), correct_inc.getY ()));
+  ASSERT (IS_COMPLEX_EXACT (E_inc.getZ (), correct_inc.getZ ()));
+}
 
-  printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
-          E_inc.getX ().real (), E_inc.getX ().imag (), NORM (E_inc.getX ()),
-          E_inc.getY ().real (), E_inc.getY ().imag (), NORM (E_inc.getY ()),
-          E_inc.getZ ().real (), E_inc.getZ ().imag (), NORM (E_inc.getZ ()));
+int main ()
+{
+  Vec3D<VALUE> test_zero (VALUE(1.0, 0.0), VALUE(0.0, 0.0), VALUE(0.0, 0.0));
+  simple_test (M_PI / 2.0, 0.0, test_zero);
+  simple_test (M_PI / 2.0, M_PI / 4.0, test_zero);
+  simple_test (M_PI / 2.0, M_PI / 2.0, test_zero);
+
+  Vec3D<VALUE> test_zero2 (VALUE(0.03799544386587661, 0.098683316029646362), VALUE(0.0, 0.0), VALUE(0.0, 0.0));
+  simple_test (0, 0, test_zero2);
+  simple_test (0, M_PI / 4.0, test_zero2);
+  simple_test (0, M_PI / 2.0, test_zero2);
+
+  // Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, 1.0, 0, 0, k);
+  // Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, 0, 0);
+  //
+  // printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
+  //         E_inc_polar.getX ().real (), E_inc_polar.getX ().imag (), NORM (E_inc_polar.getX ()),
+  //         E_inc_polar.getY ().real (), E_inc_polar.getY ().imag (), NORM (E_inc_polar.getY ()),
+  //         E_inc_polar.getZ ().real (), E_inc_polar.getZ ().imag (), NORM (E_inc_polar.getZ ()));
+  //
+  // printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
+  //         E_inc.getX ().real (), E_inc.getX ().imag (), NORM (E_inc.getX ()),
+  //         E_inc.getY ().real (), E_inc.getY ().imag (), NORM (E_inc.getY ()),
+  //         E_inc.getZ ().real (), E_inc.getZ ().imag (), NORM (E_inc.getZ ()));
 
   return 0;
 }
