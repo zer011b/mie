@@ -240,6 +240,66 @@ Vec3D<VALUE> calc_N (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALU
   return Vec3D<VALUE> (e_r, e_theta, e_phi);
 }
 
+VALUE calc_c (int n, FPVALUE a, FPVALUE lambda, FPVALUE N1, FPVALUE N, FPVALUE mu1, FPVALUE mu)
+{
+  FPVALUE m = N1 / N;
+  FPVALUE x = 2 * M_PI * N * a / lambda;
+
+  VALUE derivative_h = calc_hankel_1 (n, x) + x * calc_derivative_hankel_1 (n, x);
+  VALUE derivative_j = calc_bessel_j (n, x) + x * calc_derivative_bessel_j (n, x);
+  VALUE derivative_j_m = calc_bessel_j (n, m*x) + m*x * calc_derivative_bessel_j (n, m*x);
+
+  VALUE first = mu1 * calc_bessel_j (n, x) * derivative_h - mu1 * calc_hankel_1 (n, x) * derivative_j;
+  VALUE second = mu1 * calc_bessel_j (n, m*x) * derivative_h - mu * calc_hankel_1 (n, x) * derivative_j_m;
+
+  return first / second;
+}
+
+VALUE calc_d (int n, FPVALUE a, FPVALUE lambda, FPVALUE N1, FPVALUE N, FPVALUE mu1, FPVALUE mu)
+{
+  FPVALUE m = N1 / N;
+  FPVALUE x = 2 * M_PI * N * a / lambda;
+
+  VALUE derivative_h = calc_hankel_1 (n, x) + x * calc_derivative_hankel_1 (n, x);
+  VALUE derivative_j = calc_bessel_j (n, x) + x * calc_derivative_bessel_j (n, x);
+  VALUE derivative_j_m = calc_bessel_j (n, m*x) + m*x * calc_derivative_bessel_j (n, m*x);
+
+  VALUE first = m * mu1 * calc_bessel_j (n, x) * derivative_h - m * mu1 * calc_hankel_1 (n, x) * derivative_j;
+  VALUE second = mu * m * m * calc_bessel_j (n, m*x) * derivative_h - mu1 * calc_hankel_1 (n, x) * derivative_j_m;
+
+  return first / second;
+}
+
+VALUE calc_a (int n, FPVALUE a, FPVALUE lambda, FPVALUE N1, FPVALUE N, FPVALUE mu1, FPVALUE mu)
+{
+  FPVALUE m = N1 / N;
+  FPVALUE x = 2 * M_PI * N * a / lambda;
+
+  VALUE derivative_h = calc_hankel_1 (n, x) + x * calc_derivative_hankel_1 (n, x);
+  VALUE derivative_j = calc_bessel_j (n, x) + x * calc_derivative_bessel_j (n, x);
+  VALUE derivative_j_m = calc_bessel_j (n, m*x) + m*x * calc_derivative_bessel_j (n, m*x);
+
+  VALUE first = mu * m * m * calc_bessel_j (n, m*x) * derivative_j - mu1 * calc_bessel_j (n, x) * derivative_j_m;
+  VALUE second = mu * m * m * calc_bessel_j (n, m*x) * derivative_h - mu1 * calc_hankel_1 (n, x) * derivative_j_m;
+
+  return first / second;
+}
+
+VALUE calc_b (int n, FPVALUE a, FPVALUE lambda, FPVALUE N1, FPVALUE N, FPVALUE mu1, FPVALUE mu)
+{
+  FPVALUE m = N1 / N;
+  FPVALUE x = 2 * M_PI * N * a / lambda;
+
+  VALUE derivative_h = calc_hankel_1 (n, x) + x * calc_derivative_hankel_1 (n, x);
+  VALUE derivative_j = calc_bessel_j (n, x) + x * calc_derivative_bessel_j (n, x);
+  VALUE derivative_j_m = calc_bessel_j (n, m*x) + m*x * calc_derivative_bessel_j (n, m*x);
+
+  VALUE first = mu1 * calc_bessel_j (n, m*x) * derivative_j - mu * calc_bessel_j (n, x) * derivative_j_m;
+  VALUE second = mu1 * calc_bessel_j (n, m*x) * derivative_h - mu * calc_hankel_1 (n, x) * derivative_j_m;
+
+  return first / second;
+}
+
 Vec3D<VALUE> calc_E_inc (int maxL, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALUE k)
 {
   Vec3D<VALUE> res;
