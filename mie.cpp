@@ -295,7 +295,7 @@ void simple_test (FPVALUE theta, FPVALUE phi, Vec3D<VALUE> &correct_inc)
   ASSERT (IS_COMPLEX_EXACT (E_inc.getZ (), correct_inc.getZ ()));
 }
 
-int main ()
+void test ()
 {
   Vec3D<VALUE> test_zero (VALUE(1.0, 0.0), VALUE(0.0, 0.0), VALUE(0.0, 0.0));
   simple_test (M_PI / 2.0, 0.0, test_zero);
@@ -310,6 +310,11 @@ int main ()
   // Vec3D<VALUE> test_zero3 (VALUE(0.03799544386587661, 0.098683316029646362), VALUE(0.0, 0.0), VALUE(0.0, 0.0));
   // simple_test (M_PI / 4.0, 0, test_zero3);
   // simple_test (M_PI / 4.0, M_PI / 2.0, test_zero3);
+}
+
+int main ()
+{
+  test ();
 
   // Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, 1.0, 0, 0, k);
   // Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, 0, 0);
