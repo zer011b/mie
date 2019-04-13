@@ -96,6 +96,7 @@ FPVALUE calc_associated_legendre_func (int m, int l, FPVALUE arg)
 }
 
 // calculate P_l^m (cos(x)) / sin(x)
+// also called Pi_n in Bohren/Huffman
 FPVALUE calc_associated_legendre_func_special (int m, int l, FPVALUE arg)
 {
   ASSERT (m==1);
@@ -136,7 +137,7 @@ FPVALUE calc_derivative_associated_legendre_func (int m, int l, FPVALUE arg)
   return (1.0/(1 - SQR (arg))) * ((l + 1) * prev - l * arg * cur);
 }
 
-// calculate d(P_l^m(cos(x)))/d(cos(x)) * sin(x)
+// calculate d(P_l^m(cos(x)))/d(cos(x)) * (-sin(x))
 FPVALUE calc_derivative_associated_legendre_func_special (int m, int l, FPVALUE arg)
 {
   ASSERT (m==1);
@@ -154,40 +155,89 @@ FPVALUE calc_derivative_associated_legendre_func_special (int m, int l, FPVALUE 
   return ((l + 1) * prev - l * arg * cur) * (-1);
 }
 
-FPVALUE calc_bessel_j (int l, FPVALUE arg)
+// ================
+// Bessel functions
+// ================
+VALUE calc_bessel_j (int l, FPVALUE arg)
 {
-  return gsl_sf_bessel_jl (l, arg);
+  return VALUE (gsl_sf_bessel_jl (l, arg), 0);
+}
+VALUE calc_bessel_y (int l, FPVALUE arg)
+{
+  return VALUE (gsl_sf_bessel_yl (l, arg), 0);
+}
+VALUE calc_hankel_1 (int l, FPVALUE arg)
+{
+  return calc_bessel_j (l, arg) + VALUE (0, 1) * calc_bessel_y (l, arg);
 }
 
-//
-FPVALUE calc_derivative_bessel_j (int l, FPVALUE arg)
+// ===========================
+// Bessel function derivatives
+// ===========================
+VALUE calc_derivative_bessel (int l, FPVALUE arg, VALUE prev, VALUE next)
 {
-  return 0.5 * (gsl_sf_bessel_jl (l - 1, arg) - (1.0 / arg) * (gsl_sf_bessel_jl (l, arg) + arg * gsl_sf_bessel_jl (l + 1, arg)));
+  return 1.0/(2*l+1) * (FPVALUE(l) * prev - FPVALUE(l+1) * next);
+}
+VALUE calc_derivative_bessel_j (int l, FPVALUE arg)
+{
+  //return VALUE (0.5 * (gsl_sf_bessel_jl (l - 1, arg) - (1.0 / arg) * (gsl_sf_bessel_jl (l, arg) + arg * gsl_sf_bessel_jl (l + 1, arg))), 0);
+  return calc_derivative_bessel (l, arg, calc_bessel_j (l - 1, arg), calc_bessel_j (l + 1, arg));
+}
+VALUE calc_derivative_bessel_y (int l, FPVALUE arg)
+{
+  return calc_derivative_bessel (l, arg, calc_bessel_y (l - 1, arg), calc_bessel_y (l + 1, arg));
+}
+VALUE calc_derivative_hankel_1 (int l, FPVALUE arg)
+{
+  return calc_derivative_bessel (l, arg, calc_hankel_1 (l - 1, arg), calc_hankel_1 (l + 1, arg));
 }
 
 // return vector in spherical coordinates
-Vec3D<FPVALUE> calc_M (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALUE k, bool is_even)
+Vec3D<VALUE> calc_M (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALUE k, bool is_even, bool use_hankel)
 {
   ASSERT (m == 1);
 
-  FPVALUE e_r = 0;
-  FPVALUE e_theta = (is_even ? -1 : 1) * (m) * calc_bessel_j (l, k * r) * calc_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? sin (m * phi) : cos (m * phi));
-  FPVALUE e_phi = - calc_bessel_j (l, k * r) * calc_derivative_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
+  VALUE z = VALUE (0, 0);
+  if (use_hankel)
+  {
+    z = calc_hankel_1 (l, k * r);
+  }
+  else
+  {
+    z = calc_bessel_j (l, k * r);
+  }
 
-  return Vec3D<FPVALUE> (e_r, e_theta, e_phi);
+  VALUE e_r = VALUE (0, 0);
+  VALUE e_theta = (is_even ? -1 : 1) * FPVALUE (m) * z * calc_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? sin (m * phi) : cos (m * phi));
+  VALUE e_phi = - z * calc_derivative_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
+
+  return Vec3D<VALUE> (e_r, e_theta, e_phi);
 }
 
-Vec3D<FPVALUE> calc_N (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALUE k, bool is_even)
+Vec3D<VALUE> calc_N (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALUE k, bool is_even, bool use_hankel)
 {
   ASSERT (m == 1);
 
-  FPVALUE derivative = calc_bessel_j (l, k * r) + k * r * calc_derivative_bessel_j (l, k * r);
+  VALUE z = VALUE (0, 0);
+  VALUE z1 = VALUE (0, 0);
+  if (use_hankel)
+  {
+    z = calc_hankel_1 (l, k * r);
+    z1 = calc_derivative_hankel_1 (l, k * r);
+  }
+  else
+  {
+    z = calc_bessel_j (l, k * r);
+    z1 = calc_derivative_bessel_j (l, k * r);
+  }
 
-  FPVALUE e_r = (l * (l + 1) / (k * r)) * calc_bessel_j (l, k * r) * calc_associated_legendre_func (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
-  FPVALUE e_theta = (1.0 / (k * r)) * (derivative) * calc_derivative_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
-  FPVALUE e_phi = (is_even ? -1 : 1) * (m / (k * r)) * (derivative) * calc_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? sin (m * phi) : cos (m * phi));
+  VALUE derivative = z + k * r * z1;
 
-  return Vec3D<FPVALUE> (e_r, e_theta, e_phi);
+  VALUE e_r = (l * (l + 1) / (k * r)) * z * calc_associated_legendre_func (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
+  VALUE e_theta = (1.0 / (k * r)) * (derivative) * calc_derivative_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? cos (m * phi) : sin (m * phi));
+  VALUE e_phi = (is_even ? -1 : 1) * (m / (k * r)) * (derivative) * calc_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? sin (m * phi) : cos (m * phi));
+
+  return Vec3D<VALUE> (e_r, e_theta, e_phi);
 }
 
 Vec3D<VALUE> calc_E_inc (int maxL, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALUE k)
@@ -201,8 +251,8 @@ Vec3D<VALUE> calc_E_inc (int maxL, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALU
   {
     FPVALUE multiplier = (2.0 * l + 1) / (l * (l + 1));
 
-    Vec3D<FPVALUE> M = calc_M (1, l, r, theta, phi, k, false);
-    Vec3D<FPVALUE> N = calc_N (1, l, r, theta, phi, k, true);
+    Vec3D<VALUE> M = calc_M (1, l, r, theta, phi, k, false, false);
+    Vec3D<VALUE> N = calc_N (1, l, r, theta, phi, k, true, false);
 
     VALUE e_r = imag_l * multiplier * (M.getX () - imag * N.getX ());
     VALUE e_theta = imag_l * multiplier * (M.getY () - imag * N.getY ());
