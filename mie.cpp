@@ -162,7 +162,7 @@ FPVALUE calc_bessel_j (int l, FPVALUE arg)
 //
 FPVALUE calc_derivative_bessel_j (int l, FPVALUE arg)
 {
-  return gsl_sf_bessel_jl (l - 1, arg) - ((l + 1.0) / arg) * gsl_sf_bessel_jl (l, arg);
+  return 0.5 * (gsl_sf_bessel_jl (l - 1, arg) - (1.0 / arg) * (gsl_sf_bessel_jl (l, arg) + arg * gsl_sf_bessel_jl (l + 1, arg)));
 }
 
 // return vector in spherical coordinates
@@ -254,8 +254,12 @@ int main ()
 
   Vec3D<VALUE> test_zero2 (VALUE(0.03799544386587661, 0.098683316029646362), VALUE(0.0, 0.0), VALUE(0.0, 0.0));
   simple_test (0, 0, test_zero2);
-  simple_test (0, M_PI / 4.0, test_zero2);
-  simple_test (0, M_PI / 2.0, test_zero2);
+  // simple_test (0, M_PI / 4.0, test_zero2);
+  // simple_test (0, M_PI / 2.0, test_zero2);
+
+  // Vec3D<VALUE> test_zero3 (VALUE(0.03799544386587661, 0.098683316029646362), VALUE(0.0, 0.0), VALUE(0.0, 0.0));
+  // simple_test (M_PI / 4.0, 0, test_zero3);
+  // simple_test (M_PI / 4.0, M_PI / 2.0, test_zero3);
 
   // Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, 1.0, 0, 0, k);
   // Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, 0, 0);
