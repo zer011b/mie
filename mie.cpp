@@ -328,6 +328,72 @@ Vec3D<VALUE> calc_E_inc (int maxL, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALU
   return res;
 }
 
+Vec3D<VALUE> calc_E_internal (int maxL, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALUE k, FPVALUE radius, FPVALUE lambda,
+                              FPVALUE N1_refract, FPVALUE N_refract, FPVALUE mu1, FPVALUE mu)
+{
+  Vec3D<VALUE> res;
+
+  VALUE imag (0, 1);
+  VALUE imag_l = imag;
+
+  for (int l = 1; l <= maxL; ++l)
+  {
+    FPVALUE multiplier = (2.0 * l + 1) / (l * (l + 1));
+    VALUE E_n = imag_l * multiplier;
+
+    Vec3D<VALUE> M = calc_M (1, l, r, theta, phi, k, false, false);
+    Vec3D<VALUE> N = calc_N (1, l, r, theta, phi, k, true, false);
+
+    VALUE c_n = calc_c (l, radius, lambda, N1_refract, N_refract, mu1, mu);
+    VALUE d_n = calc_d (l, radius, lambda, N1_refract, N_refract, mu1, mu);
+
+    VALUE e_r = E_n * (c_n * M.getX () - imag * d_n * N.getX ());
+    VALUE e_theta = E_n * (c_n * M.getY () - imag * d_n * N.getY ());
+    VALUE e_phi = E_n * (c_n * M.getZ () - imag * d_n * N.getZ ());
+
+    res.setX (res.getX () + e_r);
+    res.setY (res.getY () + e_theta);
+    res.setZ (res.getZ () + e_phi);
+
+    imag_l *= imag;
+  }
+
+  return res;
+}
+
+Vec3D<VALUE> calc_E_scat (int maxL, FPVALUE r, FPVALUE theta, FPVALUE phi, FPVALUE k, FPVALUE radius, FPVALUE lambda,
+                          FPVALUE N1_refract, FPVALUE N_refract, FPVALUE mu1, FPVALUE mu)
+{
+  Vec3D<VALUE> res;
+
+  VALUE imag (0, 1);
+  VALUE imag_l = imag;
+
+  for (int l = 1; l <= maxL; ++l)
+  {
+    FPVALUE multiplier = (2.0 * l + 1) / (l * (l + 1));
+    VALUE E_n = imag_l * multiplier;
+
+    Vec3D<VALUE> M = calc_M (1, l, r, theta, phi, k, false, true);
+    Vec3D<VALUE> N = calc_N (1, l, r, theta, phi, k, true, true);
+
+    VALUE a_n = calc_a (l, radius, lambda, N1_refract, N_refract, mu1, mu);
+    VALUE b_n = calc_b (l, radius, lambda, N1_refract, N_refract, mu1, mu);
+
+    VALUE e_r = E_n * (- b_n * M.getX () + imag * a_n * N.getX ());
+    VALUE e_theta = E_n * (- b_n * M.getY () + imag * a_n * N.getY ());
+    VALUE e_phi = E_n * (- b_n * M.getZ () + imag * a_n * N.getZ ());
+
+    res.setX (res.getX () + e_r);
+    res.setY (res.getY () + e_theta);
+    res.setZ (res.getZ () + e_phi);
+
+    imag_l *= imag;
+  }
+
+  return res;
+}
+
 // pass angles of the polar coordinate system
 Vec3D<VALUE> convert_polar_to_decart (const Vec3D<VALUE> &polar, FPVALUE theta, FPVALUE phi)
 {
@@ -376,18 +442,32 @@ int main ()
 {
   test ();
 
-  // Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, 1.0, 0, 0, k);
-  // Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, 0, 0);
-  //
-  // printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
-  //         E_inc_polar.getX ().real (), E_inc_polar.getX ().imag (), NORM (E_inc_polar.getX ()),
-  //         E_inc_polar.getY ().real (), E_inc_polar.getY ().imag (), NORM (E_inc_polar.getY ()),
-  //         E_inc_polar.getZ ().real (), E_inc_polar.getZ ().imag (), NORM (E_inc_polar.getZ ()));
-  //
-  // printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
-  //         E_inc.getX ().real (), E_inc.getX ().imag (), NORM (E_inc.getX ()),
-  //         E_inc.getY ().real (), E_inc.getY ().imag (), NORM (E_inc.getY ()),
-  //         E_inc.getZ ().real (), E_inc.getZ ().imag (), NORM (E_inc.getZ ()));
+  FPVALUE lambda = 1.0;
+  FPVALUE k = 2 * M_PI / lambda;
+
+  FPVALUE radius = 1.0;
+  FPVALUE N1 = 2.0;
+  FPVALUE N = 1.0;
+  FPVALUE mu1 = 1.0;
+  FPVALUE mu = 1.0;
+
+  int maxL = 30;
+  FPVALUE r = 2.0;
+  FPVALUE theta = M_PI / 2.0;
+  FPVALUE phi = 0.0;
+
+  Vec3D<VALUE> E_scat_polar = calc_E_scat (maxL, r, theta, phi, k, radius, lambda, N1, N, mu1, mu);
+  Vec3D<VALUE> E_scat = convert_polar_to_decart (E_scat_polar, theta, phi);
+
+  printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
+          E_scat_polar.getX ().real (), E_scat_polar.getX ().imag (), NORM (E_scat_polar.getX ()),
+          E_scat_polar.getY ().real (), E_scat_polar.getY ().imag (), NORM (E_scat_polar.getY ()),
+          E_scat_polar.getZ ().real (), E_scat_polar.getZ ().imag (), NORM (E_scat_polar.getZ ()));
+
+  printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
+          E_scat.getX ().real (), E_scat.getX ().imag (), NORM (E_scat.getX ()),
+          E_scat.getY ().real (), E_scat.getY ().imag (), NORM (E_scat.getY ()),
+          E_scat.getZ ().real (), E_scat.getZ ().imag (), NORM (E_scat.getZ ()));
 
   return 0;
 }
