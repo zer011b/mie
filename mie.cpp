@@ -440,9 +440,9 @@ void test ()
 
 void calc_scat_for_grid ()
 {
-  int size = 50;
+  int size = 500;
 
-  FPVALUE lambda = 1.0;
+  FPVALUE lambda = 0.25;
   FPVALUE k = 2 * M_PI / lambda;
 
   FPVALUE radius = 1.0;
@@ -451,32 +451,62 @@ void calc_scat_for_grid ()
   FPVALUE mu1 = 1.0;
   FPVALUE mu = 1.0;
 
-  FPVALUE step = 0.1;
+  FPVALUE step = 0.01;
 
-  int maxL = 30;
+  int maxL = 20;
+
+  FILE *Ex_file = fopen ("Ex.txt", "w");
+  FILE *Ey_file = fopen ("Ey.txt", "w");
+  FILE *Ez_file = fopen ("Ez.txt", "w");
 
   for (int i = 0; i < size; ++i)
   {
-    FPVALUE real_x = (i + 0.5) * step;
+    FPVALUE real_x = (i - size/2 + 0.5) * step;
 
     for (int j = 0; j < size; ++j)
     {
-      FPVALUE real_y = (j + 0.5) * step;
+      FPVALUE real_y = (j - size/2 + 0.5) * step;
 
       FPVALUE r = sqrt (SQR(real_x) + SQR(real_y));
-
-      if (r < radius)
-      {
-        printf ("%d %d %f %f\n", i, j, 0.0, 0.0);
-        continue;
-      }
-
       FPVALUE theta = M_PI / 2.0;
       FPVALUE cos_phi = real_x / r;
       FPVALUE sin_phi = real_y / r;
 
-      Vec3D<VALUE> E_scat_polar = calc_E_scat (maxL, r, theta, cos_phi, sin_phi, k, radius, lambda, N1, N, mu1, mu);
-      Vec3D<VALUE> E_scat = convert_polar_to_decart (E_scat_polar, theta, cos_phi, sin_phi);
+      FPVALUE Ex_real = 0;
+      FPVALUE Ex_imag = 0;
+      FPVALUE Ey_real = 0;
+      FPVALUE Ey_imag = 0;
+      FPVALUE Ez_real = 0;
+      FPVALUE Ez_imag = 0;
+
+      if (r < radius)
+      {
+        // calc internal
+        Vec3D<VALUE> E_internal_polar = calc_E_internal (maxL, r, theta, cos_phi, sin_phi, k, radius, lambda, N1, N, mu1, mu);
+        Vec3D<VALUE> E_internal = convert_polar_to_decart (E_internal_polar, theta, cos_phi, sin_phi);
+        Ex_real = E_internal.getX ().real ();
+        Ex_imag = E_internal.getX ().imag ();
+        Ey_real = E_internal.getY ().real ();
+        Ey_imag = E_internal.getY ().imag ();
+        Ez_real = E_internal.getZ ().real ();
+        Ez_imag = E_internal.getZ ().imag ();
+      }
+      else
+      {
+        // calc scattered
+        Vec3D<VALUE> E_scat_polar = calc_E_scat (maxL, r, theta, cos_phi, sin_phi, k, radius, lambda, N1, N, mu1, mu);
+        Vec3D<VALUE> E_scat = convert_polar_to_decart (E_scat_polar, theta, cos_phi, sin_phi);
+        Ex_real = E_scat.getX ().real ();
+        Ex_imag = E_scat.getX ().imag ();
+        Ey_real = E_scat.getY ().real ();
+        Ey_imag = E_scat.getY ().imag ();
+        Ez_real = E_scat.getZ ().real ();
+        Ez_imag = E_scat.getZ ().imag ();
+      }
+
+
+
+
 
       // print Ez
 
@@ -489,9 +519,15 @@ void calc_scat_for_grid ()
       //         E_scat.getX ().real (), E_scat.getX ().imag (), NORM (E_scat.getX ()),
       //         E_scat.getY ().real (), E_scat.getY ().imag (), NORM (E_scat.getY ()),
       //         E_scat.getZ ().real (), E_scat.getZ ().imag (), NORM (E_scat.getZ ()));
-      printf ("%d %d %f %f\n", i, j, E_scat.getZ ().real (), E_scat.getZ ().imag ());
+      fprintf (Ex_file, "%d %d %f %f\n", i, j, Ex_real, Ex_imag);
+      fprintf (Ey_file, "%d %d %f %f\n", i, j, Ey_real, Ey_imag);
+      fprintf (Ez_file, "%d %d %f %f\n", i, j, Ez_real, Ez_imag);
     }
   }
+
+  fclose (Ex_file);
+  fclose (Ey_file);
+  fclose (Ez_file);
 }
 
 
