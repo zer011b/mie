@@ -8,7 +8,7 @@
 #define FPVALUE double
 #define VALUE std::complex<FPVALUE>
 #define ASSERT(x) assert(x)
-#define SQR(x) (x*x)
+#define SQR(x) ((x)*(x))
 #define NORM(x) (sqrt(SQR(x.real ()) + SQR(x.imag())))
 #define ACCURACY (0.000000001)
 #define IS_FP_EXACT(x,y) (((x - y) < 0 ? y - x : x - y) < ACCURACY)
@@ -193,7 +193,7 @@ VALUE calc_derivative_hankel_1 (int l, FPVALUE arg)
 }
 
 // return vector in spherical coordinates
-Vec3D<VALUE> calc_M (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, FPVALUE sin_phi, FPVALUE k, bool is_even, bool use_hankel)
+Vec3D<VALUE> calc_M (int m, int l, FPVALUE r, FPVALUE cos_theta, FPVALUE cos_phi, FPVALUE sin_phi, FPVALUE k, bool is_even, bool use_hankel)
 {
   ASSERT (m == 1);
 
@@ -208,13 +208,13 @@ Vec3D<VALUE> calc_M (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, FP
   }
 
   VALUE e_r = VALUE (0, 0);
-  VALUE e_theta = (is_even ? -1 : 1) * FPVALUE (m) * z * calc_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? sin_phi : cos_phi);
-  VALUE e_phi = - z * calc_derivative_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? cos_phi : sin_phi);
+  VALUE e_theta = (is_even ? -1 : 1) * FPVALUE (m) * z * calc_associated_legendre_func_special (m, l, cos_theta) * (is_even ? sin_phi : cos_phi);
+  VALUE e_phi = - z * calc_derivative_associated_legendre_func_special (m, l, cos_theta) * (is_even ? cos_phi : sin_phi);
 
   return Vec3D<VALUE> (e_r, e_theta, e_phi);
 }
 
-Vec3D<VALUE> calc_N (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, FPVALUE sin_phi, FPVALUE k, bool is_even, bool use_hankel)
+Vec3D<VALUE> calc_N (int m, int l, FPVALUE r, FPVALUE cos_theta, FPVALUE cos_phi, FPVALUE sin_phi, FPVALUE k, bool is_even, bool use_hankel)
 {
   ASSERT (m == 1);
 
@@ -233,9 +233,9 @@ Vec3D<VALUE> calc_N (int m, int l, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, FP
 
   VALUE derivative = z + k * r * z1;
 
-  VALUE e_r = (l * (l + 1) / (k * r)) * z * calc_associated_legendre_func (m, l, cos (theta)) * (is_even ? cos_phi : sin_phi);
-  VALUE e_theta = (1.0 / (k * r)) * (derivative) * calc_derivative_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? cos_phi : sin_phi);
-  VALUE e_phi = (is_even ? -1 : 1) * (m / (k * r)) * (derivative) * calc_associated_legendre_func_special (m, l, cos (theta)) * (is_even ? sin_phi : cos_phi);
+  VALUE e_r = (l * (l + 1) / (k * r)) * z * calc_associated_legendre_func (m, l, cos_theta) * (is_even ? cos_phi : sin_phi);
+  VALUE e_theta = (1.0 / (k * r)) * (derivative) * calc_derivative_associated_legendre_func_special (m, l, cos_theta) * (is_even ? cos_phi : sin_phi);
+  VALUE e_phi = (is_even ? -1 : 1) * (m / (k * r)) * (derivative) * calc_associated_legendre_func_special (m, l, cos_theta) * (is_even ? sin_phi : cos_phi);
 
   return Vec3D<VALUE> (e_r, e_theta, e_phi);
 }
@@ -300,7 +300,7 @@ VALUE calc_b (int n, FPVALUE a, FPVALUE lambda, FPVALUE N1, FPVALUE N, FPVALUE m
   return first / second;
 }
 
-Vec3D<VALUE> calc_E_inc (int maxL, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, FPVALUE sin_phi, FPVALUE k)
+Vec3D<VALUE> calc_E_inc (int maxL, FPVALUE r, FPVALUE cos_theta, FPVALUE cos_phi, FPVALUE sin_phi, FPVALUE k)
 {
   Vec3D<VALUE> res;
 
@@ -311,8 +311,8 @@ Vec3D<VALUE> calc_E_inc (int maxL, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, FP
   {
     FPVALUE multiplier = (2.0 * l + 1) / (l * (l + 1));
 
-    Vec3D<VALUE> M = calc_M (1, l, r, theta, cos_phi, sin_phi, k, false, false);
-    Vec3D<VALUE> N = calc_N (1, l, r, theta, cos_phi, sin_phi, k, true, false);
+    Vec3D<VALUE> M = calc_M (1, l, r, cos_theta, cos_phi, sin_phi, k, false, false);
+    Vec3D<VALUE> N = calc_N (1, l, r, cos_theta, cos_phi, sin_phi, k, true, false);
 
     VALUE e_r = imag_l * multiplier * (M.getX () - imag * N.getX ());
     VALUE e_theta = imag_l * multiplier * (M.getY () - imag * N.getY ());
@@ -328,7 +328,7 @@ Vec3D<VALUE> calc_E_inc (int maxL, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, FP
   return res;
 }
 
-Vec3D<VALUE> calc_E_internal (int maxL, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, FPVALUE sin_phi, FPVALUE k, FPVALUE radius, FPVALUE lambda,
+Vec3D<VALUE> calc_E_internal (int maxL, FPVALUE r, FPVALUE cos_theta, FPVALUE cos_phi, FPVALUE sin_phi, FPVALUE k, FPVALUE radius, FPVALUE lambda,
                               FPVALUE N1_refract, FPVALUE N_refract, FPVALUE mu1, FPVALUE mu)
 {
   Vec3D<VALUE> res;
@@ -341,8 +341,8 @@ Vec3D<VALUE> calc_E_internal (int maxL, FPVALUE r, FPVALUE theta, FPVALUE cos_ph
     FPVALUE multiplier = (2.0 * l + 1) / (l * (l + 1));
     VALUE E_n = imag_l * multiplier;
 
-    Vec3D<VALUE> M = calc_M (1, l, r, theta, cos_phi, sin_phi, k, false, false);
-    Vec3D<VALUE> N = calc_N (1, l, r, theta, cos_phi, sin_phi, k, true, false);
+    Vec3D<VALUE> M = calc_M (1, l, r, cos_theta, cos_phi, sin_phi, k, false, false);
+    Vec3D<VALUE> N = calc_N (1, l, r, cos_theta, cos_phi, sin_phi, k, true, false);
 
     VALUE c_n = calc_c (l, radius, lambda, N1_refract, N_refract, mu1, mu);
     VALUE d_n = calc_d (l, radius, lambda, N1_refract, N_refract, mu1, mu);
@@ -361,7 +361,7 @@ Vec3D<VALUE> calc_E_internal (int maxL, FPVALUE r, FPVALUE theta, FPVALUE cos_ph
   return res;
 }
 
-Vec3D<VALUE> calc_E_scat (int maxL, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, FPVALUE sin_phi, FPVALUE k, FPVALUE radius, FPVALUE lambda,
+Vec3D<VALUE> calc_E_scat (int maxL, FPVALUE r, FPVALUE cos_theta, FPVALUE cos_phi, FPVALUE sin_phi, FPVALUE k, FPVALUE radius, FPVALUE lambda,
                           FPVALUE N1_refract, FPVALUE N_refract, FPVALUE mu1, FPVALUE mu)
 {
   Vec3D<VALUE> res;
@@ -374,8 +374,8 @@ Vec3D<VALUE> calc_E_scat (int maxL, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, F
     FPVALUE multiplier = (2.0 * l + 1) / (l * (l + 1));
     VALUE E_n = imag_l * multiplier;
 
-    Vec3D<VALUE> M = calc_M (1, l, r, theta, cos_phi, sin_phi, k, false, true);
-    Vec3D<VALUE> N = calc_N (1, l, r, theta, cos_phi, sin_phi, k, true, true);
+    Vec3D<VALUE> M = calc_M (1, l, r, cos_theta, cos_phi, sin_phi, k, false, true);
+    Vec3D<VALUE> N = calc_N (1, l, r, cos_theta, cos_phi, sin_phi, k, true, true);
 
     VALUE a_n = calc_a (l, radius, lambda, N1_refract, N_refract, mu1, mu);
     VALUE b_n = calc_b (l, radius, lambda, N1_refract, N_refract, mu1, mu);
@@ -395,26 +395,26 @@ Vec3D<VALUE> calc_E_scat (int maxL, FPVALUE r, FPVALUE theta, FPVALUE cos_phi, F
 }
 
 // pass angles of the polar coordinate system
-Vec3D<VALUE> convert_polar_to_decart (const Vec3D<VALUE> &polar, FPVALUE theta, FPVALUE cos_phi, FPVALUE sin_phi)
+Vec3D<VALUE> convert_polar_to_decart (const Vec3D<VALUE> &polar, FPVALUE cos_theta, FPVALUE sin_theta, FPVALUE cos_phi, FPVALUE sin_phi)
 {
-  VALUE x = polar.getX () * sin (theta) * cos_phi + polar.getY () * cos (theta) * cos_phi - polar.getZ () * sin_phi;
-  VALUE y = polar.getX () * sin (theta) * sin_phi + polar.getY () * cos (theta) * sin_phi + polar.getZ () * cos_phi;
-  VALUE z = polar.getX () * cos (theta) - polar.getY () * sin (theta);
+  VALUE x = polar.getX () * sin_theta * cos_phi + polar.getY () * cos_theta * cos_phi - polar.getZ () * sin_phi;
+  VALUE y = polar.getX () * sin_theta * sin_phi + polar.getY () * cos_theta * sin_phi + polar.getZ () * cos_phi;
+  VALUE z = polar.getX () * cos_theta - polar.getY () * sin_theta;
 
   Vec3D<VALUE> res (x, y, z);
 
   return res;
 }
 
-void simple_test (FPVALUE theta, FPVALUE cos_phi, FPVALUE sin_phi, Vec3D<VALUE> &correct_inc)
+void simple_test (FPVALUE cos_theta, FPVALUE sin_theta, FPVALUE cos_phi, FPVALUE sin_phi, Vec3D<VALUE> &correct_inc)
 {
   FPVALUE lambda = 1.0;
   FPVALUE k = 2 * M_PI / lambda;
 
   int maxL = 30;
 
-  Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, 1.0, theta, cos_phi, sin_phi, k);
-  Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, theta, cos_phi, sin_phi);
+  Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, 1.0, cos_theta, cos_phi, sin_phi, k);
+  Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, cos_theta, sin_theta, cos_phi, sin_phi);
 
   ASSERT (IS_COMPLEX_EXACT (E_inc.getX (), correct_inc.getX ()));
   ASSERT (IS_COMPLEX_EXACT (E_inc.getY (), correct_inc.getY ()));
@@ -424,12 +424,12 @@ void simple_test (FPVALUE theta, FPVALUE cos_phi, FPVALUE sin_phi, Vec3D<VALUE> 
 void test ()
 {
   Vec3D<VALUE> test_zero (VALUE(1.0, 0.0), VALUE(0.0, 0.0), VALUE(0.0, 0.0));
-  simple_test (M_PI / 2.0, cos (0.0), sin (0.0), test_zero);
-  simple_test (M_PI / 2.0, cos (M_PI / 4.0), sin (M_PI / 4.0), test_zero);
-  simple_test (M_PI / 2.0, cos (M_PI / 2.0), sin (M_PI / 2.0), test_zero);
+  simple_test (cos (M_PI / 2.0), sin (M_PI / 2.0), cos (0.0), sin (0.0), test_zero);
+  simple_test (cos (M_PI / 2.0), sin (M_PI / 2.0), cos (M_PI / 4.0), sin (M_PI / 4.0), test_zero);
+  simple_test (cos (M_PI / 2.0), sin (M_PI / 2.0), cos (M_PI / 2.0), sin (M_PI / 2.0), test_zero);
 
   Vec3D<VALUE> test_zero2 (VALUE(0.03799544386587661, 0.098683316029646362), VALUE(0.0, 0.0), VALUE(0.0, 0.0));
-  simple_test (0, cos (0.0), sin (0.0), test_zero2);
+  simple_test (cos (0.0), sin (0.0), cos (0.0), sin (0.0), test_zero2);
   // simple_test (0, M_PI / 4.0, test_zero2);
   // simple_test (0, M_PI / 2.0, test_zero2);
 
@@ -440,7 +440,7 @@ void test ()
 
 void calc_scat_for_grid ()
 {
-  int size = 500;
+  int size = 250;
 
   FPVALUE lambda = 0.25;
   FPVALUE k = 2 * M_PI / lambda;
@@ -451,26 +451,38 @@ void calc_scat_for_grid ()
   FPVALUE mu1 = 1.0;
   FPVALUE mu = 1.0;
 
-  FPVALUE step = 0.01;
+  FPVALUE step = 0.02;
 
-  int maxL = 20;
+  int maxL = 10;
 
   FILE *Ex_file = fopen ("Ex.txt", "w");
   FILE *Ey_file = fopen ("Ey.txt", "w");
   FILE *Ez_file = fopen ("Ez.txt", "w");
 
+  FILE *Ex_inc_file = fopen ("Ex_inc.txt", "w");
+  FILE *Ey_inc_file = fopen ("Ey_inc.txt", "w");
+  FILE *Ez_inc_file = fopen ("Ez_inc.txt", "w");
+
+  // int i = 0;
+  // int j = 0;
+
   for (int i = 0; i < size; ++i)
   {
-    FPVALUE real_x = (i - size/2 + 0.5) * step;
+    FPVALUE real_z = (i - size/2 + 0.5) * step;
+    //FPVALUE real_z = 0.2;
 
     for (int j = 0; j < size; ++j)
     {
-      FPVALUE real_y = (j - size/2 + 0.5) * step;
+      FPVALUE real_x = (j - size/2 + 0.5) * step;
+      //FPVALUE real_x = 0.5;
 
-      FPVALUE r = sqrt (SQR(real_x) + SQR(real_y));
-      FPVALUE theta = M_PI / 2.0;
-      FPVALUE cos_phi = real_x / r;
-      FPVALUE sin_phi = real_y / r;
+      FPVALUE r = sqrt (SQR(real_x) + SQR(real_z));
+      //FPVALUE theta = M_PI / 2.0;
+      //FPVALUE phi =
+      FPVALUE cos_phi = 1.0;
+      FPVALUE sin_phi = 0.0;
+      FPVALUE cos_theta = real_z / r;
+      FPVALUE sin_theta = real_x / r;
 
       FPVALUE Ex_real = 0;
       FPVALUE Ex_imag = 0;
@@ -482,20 +494,27 @@ void calc_scat_for_grid ()
       if (r < radius)
       {
         // calc internal
-        Vec3D<VALUE> E_internal_polar = calc_E_internal (maxL, r, theta, cos_phi, sin_phi, k, radius, lambda, N1, N, mu1, mu);
-        Vec3D<VALUE> E_internal = convert_polar_to_decart (E_internal_polar, theta, cos_phi, sin_phi);
+        Vec3D<VALUE> E_internal_polar = calc_E_internal (maxL, r, cos_theta, cos_phi, sin_phi, k, radius, lambda, N1, N, mu1, mu);
+        Vec3D<VALUE> E_internal = convert_polar_to_decart (E_internal_polar, cos_theta, sin_theta, cos_phi, sin_phi);
+        // Vec3D<VALUE> & E_internal = E_internal_polar;
         Ex_real = E_internal.getX ().real ();
         Ex_imag = E_internal.getX ().imag ();
         Ey_real = E_internal.getY ().real ();
         Ey_imag = E_internal.getY ().imag ();
         Ez_real = E_internal.getZ ().real ();
         Ez_imag = E_internal.getZ ().imag ();
+
+        // printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
+        //         E_internal_polar.getX ().real (), E_internal_polar.getX ().imag (), NORM (E_internal_polar.getX ()),
+        //         E_internal_polar.getY ().real (), E_internal_polar.getY ().imag (), NORM (E_internal_polar.getY ()),
+        //         E_internal_polar.getZ ().real (), E_internal_polar.getZ ().imag (), NORM (E_internal_polar.getZ ()));
       }
       else
       {
         // calc scattered
-        Vec3D<VALUE> E_scat_polar = calc_E_scat (maxL, r, theta, cos_phi, sin_phi, k, radius, lambda, N1, N, mu1, mu);
-        Vec3D<VALUE> E_scat = convert_polar_to_decart (E_scat_polar, theta, cos_phi, sin_phi);
+        Vec3D<VALUE> E_scat_polar = calc_E_scat (maxL, r, cos_theta, cos_phi, sin_phi, k, radius, lambda, N1, N, mu1, mu);
+        Vec3D<VALUE> E_scat = convert_polar_to_decart (E_scat_polar, cos_theta, sin_theta, cos_phi, sin_phi);
+        // Vec3D<VALUE> & E_scat = E_scat_polar;
         Ex_real = E_scat.getX ().real ();
         Ex_imag = E_scat.getX ().imag ();
         Ey_real = E_scat.getY ().real ();
@@ -504,7 +523,12 @@ void calc_scat_for_grid ()
         Ez_imag = E_scat.getZ ().imag ();
       }
 
-
+      // Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, r, cos_theta, cos_phi, sin_phi, k);
+      // Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, cos_theta, sin_theta, cos_phi, sin_phi);
+      //
+      // fprintf (Ex_inc_file, "%d %d %f %f\n", i, j, E_inc.getX ().real (), E_inc.getX ().imag ());
+      // fprintf (Ey_inc_file, "%d %d %f %f\n", i, j, E_inc.getY ().real (), E_inc.getY ().imag ());
+      // fprintf (Ez_inc_file, "%d %d %f %f\n", i, j, E_inc.getZ ().real (), E_inc.getZ ().imag ());
 
 
 
@@ -528,6 +552,10 @@ void calc_scat_for_grid ()
   fclose (Ex_file);
   fclose (Ey_file);
   fclose (Ez_file);
+
+  fclose (Ex_inc_file);
+  fclose (Ey_inc_file);
+  fclose (Ez_inc_file);
 }
 
 
