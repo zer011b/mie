@@ -98,7 +98,7 @@ FPVALUE calc_associated_legendre_func (int m, int l, FPVALUE arg)
 
 // calculate P_l^m (cos(x)) / sin(x)
 // also called Pi_n in Bohren/Huffman
-FPVALUE calc_associated_legendre_func_special (int m, int l, FPVALUE arg)
+FPVALUE calc_associated_legendre_func_special_pi (int m, int l, FPVALUE arg)
 {
   ASSERT (m==1);
 
@@ -120,6 +120,25 @@ FPVALUE calc_associated_legendre_func_special (int m, int l, FPVALUE arg)
   return (1.0/(l-1)) * ((2*l-1) * arg * prev - l * prevPrev);
 }
 
+// calculate d P_l^m / d theta
+// also called Tau_n in Bohren/Huffman
+FPVALUE calc_associated_legendre_func_special_tau (int m, int l, FPVALUE arg)
+{
+  ASSERT (m==1);
+
+  if (l == 0)
+  {
+    return arg;
+  }
+
+  ASSERT (l >= 1);
+
+  FPVALUE cur = calc_associated_legendre_func_special_pi (m, l, arg);
+  FPVALUE prev = calc_associated_legendre_func_special_pi (m, l - 1, arg);
+
+  return FPVALUE (l) * arg * cur - FPVALUE (l + 1) * prev;
+}
+
 // calculate d(P_l^m(x))/dx
 FPVALUE calc_derivative_associated_legendre_func (int m, int l, FPVALUE arg)
 {
@@ -138,23 +157,23 @@ FPVALUE calc_derivative_associated_legendre_func (int m, int l, FPVALUE arg)
   return (1.0/(1 - SQR (arg))) * ((l + 1) * prev - l * arg * cur);
 }
 
-// calculate d(P_l^m(cos(x)))/d(cos(x)) * (-sin(x))
-FPVALUE calc_derivative_associated_legendre_func_special (int m, int l, FPVALUE arg)
-{
-  ASSERT (m==1);
-
-  if (l == 0)
-  {
-    return FPVALUE (0);
-  }
-
-  ASSERT (l >= 1);
-
-  FPVALUE prev = calc_associated_legendre_func_special (m, l - 1, arg);
-  FPVALUE cur = calc_associated_legendre_func_special (m, l, arg);
-
-  return ((l + 1) * prev - l * arg * cur) * (-1);
-}
+// // calculate d(P_l^m(cos(x)))/d(cos(x)) * (-sin(x))
+// FPVALUE calc_derivative_associated_legendre_func_special (int m, int l, FPVALUE arg)
+// {
+//   ASSERT (m==1);
+//
+//   if (l == 0)
+//   {
+//     return FPVALUE (0);
+//   }
+//
+//   ASSERT (l >= 1);
+//
+//   FPVALUE prev = calc_associated_legendre_func_special_pi (m, l - 1, arg);
+//   FPVALUE cur = calc_associated_legendre_func_special_pi (m, l, arg);
+//
+//   return ((l + 1) * prev - l * arg * cur) * (-1);
+// }
 
 // ================
 // Bessel functions
@@ -209,8 +228,8 @@ Vec3D<VALUE> calc_M (int m, int l, FPVALUE r, FPVALUE cos_theta, FPVALUE cos_phi
   }
 
   VALUE e_r = VALUE (0, 0);
-  VALUE e_theta = (is_even ? -1 : 1) * FPVALUE (m) * z * calc_associated_legendre_func_special (m, l, cos_theta) * (is_even ? sin_phi : cos_phi);
-  VALUE e_phi = - z * calc_derivative_associated_legendre_func_special (m, l, cos_theta) * (is_even ? cos_phi : sin_phi);
+  VALUE e_theta = (is_even ? -1 : 1) * FPVALUE (m) * z * calc_associated_legendre_func_special_pi (m, l, cos_theta) * (is_even ? sin_phi : cos_phi);
+  VALUE e_phi = - z * calc_associated_legendre_func_special_tau (m, l, cos_theta) * (is_even ? cos_phi : sin_phi);
 
   return Vec3D<VALUE> (e_r, e_theta, e_phi);
 }
@@ -235,8 +254,8 @@ Vec3D<VALUE> calc_N (int m, int l, FPVALUE r, FPVALUE cos_theta, FPVALUE cos_phi
   VALUE derivative = z + k * r * z1;
 
   VALUE e_r = (l * (l + 1) / (k * r)) * z * calc_associated_legendre_func (m, l, cos_theta) * (is_even ? cos_phi : sin_phi);
-  VALUE e_theta = (1.0 / (k * r)) * (derivative) * calc_derivative_associated_legendre_func_special (m, l, cos_theta) * (is_even ? cos_phi : sin_phi);
-  VALUE e_phi = (is_even ? -1 : 1) * (m / (k * r)) * (derivative) * calc_associated_legendre_func_special (m, l, cos_theta) * (is_even ? sin_phi : cos_phi);
+  VALUE e_theta = (1.0 / (k * r)) * (derivative) * calc_associated_legendre_func_special_tau (m, l, cos_theta) * (is_even ? cos_phi : sin_phi);
+  VALUE e_phi = (is_even ? -1 : 1) * (m / (k * r)) * (derivative) * calc_associated_legendre_func_special_pi (m, l, cos_theta) * (is_even ? sin_phi : cos_phi);
 
   return Vec3D<VALUE> (e_r, e_theta, e_phi);
 }
@@ -570,12 +589,12 @@ void calc_scat_for_grid ()
         Ez_imag = E_scat.getZ ().imag ();
       }
 
-      // Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, r, cos_theta, cos_phi, sin_phi, k);
-      // Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, cos_theta, sin_theta, cos_phi, sin_phi);
-      //
-      // fprintf (Ex_inc_file, "%d %d %f %f\n", i, j, E_inc.getX ().real (), E_inc.getX ().imag ());
-      // fprintf (Ey_inc_file, "%d %d %f %f\n", i, j, E_inc.getY ().real (), E_inc.getY ().imag ());
-      // fprintf (Ez_inc_file, "%d %d %f %f\n", i, j, E_inc.getZ ().real (), E_inc.getZ ().imag ());
+      Vec3D<VALUE> E_inc_polar = calc_E_inc (maxL, r, cos_theta, cos_phi, sin_phi, k);
+      Vec3D<VALUE> E_inc = convert_polar_to_decart (E_inc_polar, cos_theta, sin_theta, cos_phi, sin_phi);
+
+      fprintf (Ex_inc_file, "%d %d %f %f\n", i, j, E_inc.getX ().real (), E_inc.getX ().imag ());
+      fprintf (Ey_inc_file, "%d %d %f %f\n", i, j, E_inc.getY ().real (), E_inc.getY ().imag ());
+      fprintf (Ez_inc_file, "%d %d %f %f\n", i, j, E_inc.getZ ().real (), E_inc.getZ ().imag ());
 
 
 
@@ -609,45 +628,45 @@ void calc_scat_for_grid ()
 int main ()
 {
   // test ();
-  //calc_scat_for_grid ();
+  calc_scat_for_grid ();
 
-  FPVALUE lambda = 1.0;
-  FPVALUE k = 2 * M_PI / lambda;
-
-  FPVALUE radius = 1.0;
-  FPVALUE N1 = 2.0;
-  FPVALUE N = 1.0;
-  FPVALUE mu1 = 1.0;
-  FPVALUE mu = 1.0;
-
-  int maxL = 30;
-  FPVALUE r = 2.0;
-  FPVALUE theta = M_PI / 2.0;
-  FPVALUE cos_theta = cos (theta);
-  FPVALUE phi = 0.0;
-  FPVALUE cos_phi = cos (phi);
-  FPVALUE sin_phi = sin (phi);
-
-  // Vec3D<VALUE> E_scat_polar = calc_E_scat (maxL, r, cos_theta, cos_phi, sin_phi, k, radius, lambda, N1, N, mu1, mu);
-  // Vec3D<VALUE> E_scat = convert_polar_to_decart (E_scat_polar, theta, cos_phi, sin_phi);
+  // FPVALUE lambda = 1.0;
+  // FPVALUE k = 2 * M_PI / lambda;
   //
-  // printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
-  //         E_scat_polar.getX ().real (), E_scat_polar.getX ().imag (), NORM (E_scat_polar.getX ()),
-  //         E_scat_polar.getY ().real (), E_scat_polar.getY ().imag (), NORM (E_scat_polar.getY ()),
-  //         E_scat_polar.getZ ().real (), E_scat_polar.getZ ().imag (), NORM (E_scat_polar.getZ ()));
+  // FPVALUE radius = 1.0;
+  // FPVALUE N1 = 2.0;
+  // FPVALUE N = 1.0;
+  // FPVALUE mu1 = 1.0;
+  // FPVALUE mu = 1.0;
   //
-  // printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
-  //         E_scat.getX ().real (), E_scat.getX ().imag (), NORM (E_scat.getX ()),
-  //         E_scat.getY ().real (), E_scat.getY ().imag (), NORM (E_scat.getY ()),
-  //         E_scat.getZ ().real (), E_scat.getZ ().imag (), NORM (E_scat.getZ ()));
-
-  FPVALUE c_scat = calc_scat_coeff (maxL, k, 1.0, lambda, N1, N, mu1, mu);
-  FPVALUE c_ext = calc_ext_coeff (maxL, k, 1.0, lambda, N1, N, mu1, mu);
-
-  FPVALUE q_scat = calc_scat_q (maxL, k, 1.0, lambda, N1, N, mu1, mu);
-  FPVALUE q_ext = calc_ext_q (maxL, k, 1.0, lambda, N1, N, mu1, mu);
-
-  printf ("%.10f %.10f %.10f %.10f\n", c_scat, c_ext, q_scat, q_ext);
+  // int maxL = 30;
+  // FPVALUE r = 2.0;
+  // FPVALUE theta = M_PI / 2.0;
+  // FPVALUE cos_theta = cos (theta);
+  // FPVALUE phi = 0.0;
+  // FPVALUE cos_phi = cos (phi);
+  // FPVALUE sin_phi = sin (phi);
+  //
+  // // Vec3D<VALUE> E_scat_polar = calc_E_scat (maxL, r, cos_theta, cos_phi, sin_phi, k, radius, lambda, N1, N, mu1, mu);
+  // // Vec3D<VALUE> E_scat = convert_polar_to_decart (E_scat_polar, theta, cos_phi, sin_phi);
+  // //
+  // // printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
+  // //         E_scat_polar.getX ().real (), E_scat_polar.getX ().imag (), NORM (E_scat_polar.getX ()),
+  // //         E_scat_polar.getY ().real (), E_scat_polar.getY ().imag (), NORM (E_scat_polar.getY ()),
+  // //         E_scat_polar.getZ ().real (), E_scat_polar.getZ ().imag (), NORM (E_scat_polar.getZ ()));
+  // //
+  // // printf ("( {%f,%f}=|%f| , {%f,%f}=|%f| , {%f,%f}=|%f| )\n",
+  // //         E_scat.getX ().real (), E_scat.getX ().imag (), NORM (E_scat.getX ()),
+  // //         E_scat.getY ().real (), E_scat.getY ().imag (), NORM (E_scat.getY ()),
+  // //         E_scat.getZ ().real (), E_scat.getZ ().imag (), NORM (E_scat.getZ ()));
+  //
+  // FPVALUE c_scat = calc_scat_coeff (maxL, k, 1.0, lambda, N1, N, mu1, mu);
+  // FPVALUE c_ext = calc_ext_coeff (maxL, k, 1.0, lambda, N1, N, mu1, mu);
+  //
+  // FPVALUE q_scat = calc_scat_q (maxL, k, 1.0, lambda, N1, N, mu1, mu);
+  // FPVALUE q_ext = calc_ext_q (maxL, k, 1.0, lambda, N1, N, mu1, mu);
+  //
+  // printf ("%.10f %.10f %.10f %.10f\n", c_scat, c_ext, q_scat, q_ext);
 
   return 0;
 }
